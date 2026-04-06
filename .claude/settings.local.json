@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls -la .env*)",
+      "Bash(npx prisma:*)",
+      "Bash(npm run:*)"
+    ]
+  }
+}

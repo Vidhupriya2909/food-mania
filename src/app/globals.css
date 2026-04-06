@@ -1,0 +1,176 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 20 14% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 20 14% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 20 14% 10%;
+    --primary: 25 95% 53%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 20 14% 96%;
+    --secondary-foreground: 20 14% 10%;
+    --muted: 20 14% 96%;
+    --muted-foreground: 20 14% 46%;
+    --accent: 20 14% 96%;
+    --accent-foreground: 20 14% 10%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 20 14% 90%;
+    --input: 20 14% 90%;
+    --ring: 25 95% 53%;
+    --radius: 0.75rem;
+
+    /* Chart colors */
+    --chart-1: 25 95% 53%;
+    --chart-2: 142 72% 39%;
+    --chart-3: 205 80% 52%;
+    --chart-4: 45 93% 58%;
+    --chart-5: 340 75% 55%;
+  }
+
+  .dark {
+    --background: 220 15% 7%;
+    --foreground: 30 10% 95%;
+    --card: 220 15% 10%;
+    --card-foreground: 30 10% 95%;
+    --popover: 220 15% 10%;
+    --popover-foreground: 30 10% 95%;
+    --primary: 25 95% 53%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 15% 15%;
+    --secondary-foreground: 30 10% 95%;
+    --muted: 220 15% 15%;
+    --muted-foreground: 30 10% 55%;
+    --accent: 220 15% 15%;
+    --accent-foreground: 30 10% 95%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 15% 18%;
+    --input: 220 15% 18%;
+    --ring: 25 95% 53%;
+
+    --chart-1: 25 95% 53%;
+    --chart-2: 142 72% 49%;
+    --chart-3: 205 80% 62%;
+    --chart-4: 45 93% 58%;
+    --chart-5: 340 75% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Outfit', system-ui, sans-serif;
+  }
+}
+
+@layer utilities {
+  /* Glassmorphism utilities */
+  .glass {
+    @apply bg-white/10 backdrop-blur-lg border border-white/20;
+  }
+
+  .glass-dark {
+    @apply bg-black/20 backdrop-blur-lg border border-white/10;
+  }
+
+  /* Gradient text */
+  .gradient-text {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-saffron-500 via-spice-500 to-saffron-600;
+  }
+
+  .gradient-text-premium {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-saffron-400 via-amber-300 to-saffron-500;
+  }
+
+  /* Premium card hover effect */
+  .card-hover {
+    @apply transition-all duration-300 hover:shadow-xl hover:-translate-y-1;
+  }
+
+  /* Smooth scrollbar */
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    @apply bg-muted-foreground/20 rounded-full;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/40;
+  }
+
+  /* Animation delays */
+  .delay-100 { animation-delay: 100ms; }
+  .delay-200 { animation-delay: 200ms; }
+  .delay-300 { animation-delay: 300ms; }
+  .delay-400 { animation-delay: 400ms; }
+  .delay-500 { animation-delay: 500ms; }
+
+  /* Food type badges */
+  .badge-veg {
+    @apply bg-herb-100 text-herb-800 dark:bg-herb-900/30 dark:text-herb-400;
+  }
+
+  .badge-nonveg {
+    @apply bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400;
+  }
+
+  .badge-vegan {
+    @apply bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400;
+  }
+
+  .badge-egg {
+    @apply bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400;
+  }
+
+  /* Premium button gradients */
+  .btn-primary-gradient {
+    @apply bg-gradient-to-r from-saffron-500 to-spice-500 hover:from-saffron-600 hover:to-spice-600 text-white shadow-lg shadow-saffron-500/25 transition-all duration-300;
+  }
+
+  .btn-premium-gradient {
+    @apply bg-gradient-to-r from-saffron-400 via-amber-400 to-saffron-500 hover:from-saffron-500 hover:via-amber-500 hover:to-saffron-600 text-white shadow-lg shadow-amber-500/25 transition-all duration-300;
+  }
+}
+
+/* Page transition animation */
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.page-enter {
+  animation: page-enter 0.4s ease-out forwards;
+}
+
+/* Meal type color coding */
+.meal-breakfast { @apply border-l-4 border-l-amber-400; }
+.meal-lunch { @apply border-l-4 border-l-saffron-500; }
+.meal-dinner { @apply border-l-4 border-l-spice-500; }
