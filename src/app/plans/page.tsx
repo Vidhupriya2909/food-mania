@@ -1,69 +1,60 @@
 "use client";
 
 import React, { useState } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Check,
   Star,
-  Calendar,
   ArrowRight,
-  Sparkles,
-  Sun,
-  Cloud,
-  Moon,
-  CalendarDays,
   Minus,
   Plus,
+  CalendarDays,
+  Loader2,
+  Zap,
+  Crown,
   Settings2,
 } from "lucide-react";
-import { Loader2 } from "lucide-react";
 import { format, addDays } from "date-fns";
 
-const MEAL_OPTIONS = [
-  { type: "BREAKFAST", label: "Breakfast", icon: Sun, time: "7-10 AM", emoji: "☀️", color: "text-amber-500" },
-  { type: "LUNCH", label: "Lunch", icon: Cloud, time: "12-2 PM", emoji: "🌤️", color: "text-saffron-500" },
-  { type: "DINNER", label: "Dinner", icon: Moon, time: "7-10 PM", emoji: "🌙", color: "text-spice-500" },
+const MEAL_PREFERENCES = [
+  { type: "BREAKFAST", label: "Breakfast", time: "7 - 10 AM" },
+  { type: "LUNCH", label: "Lunch", time: "12 - 2 PM" },
+  { type: "DINNER", label: "Dinner", time: "7 - 10 PM" },
+];
+
+const DIET_TYPES = [
+  { value: "VEG", label: "Vegetarian", icon: "🟢" },
+  { value: "NON_VEG", label: "Non-Vegetarian", icon: "🔴" },
+  { value: "VEGAN", label: "Vegan", icon: "🌱" },
+  { value: "EGGETARIAN", label: "Eggetarian", icon: "🟡" },
 ];
 
 export default function PlansPage() {
-  const [selectedMeals, setSelectedMeals] = useState<string[]>(["BREAKFAST", "LUNCH", "DINNER"]);
+  const router = useRouter();
+  const [selectedMeals, setSelectedMeals] = useState<string[]>(["LUNCH", "DINNER"]);
+  const [dietType, setDietType] = useState("VEG");
   const [plans, setPlans] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [startDate, setStartDate] = useState<Date>(addDays(new Date(), 1));
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [customDays, setCustomDays] = useState(14);
 
-  // Custom plan state
-  const [customDays, setCustomDays] = useState(10);
-  const [customMealsPerDay, setCustomMealsPerDay] = useState<Record<string, number>>({
-    BREAKFAST: 1,
-    LUNCH: 1,
-    DINNER: 1,
-  });
+  const BASE_MEAL_PRICE = 99;
 
   React.useEffect(() => {
     fetch("/api/plans")
       .then((res) => res.json())
       .then((data) => {
-        if (data.success) {
-          const formattedPlans = data.plans.map((p: any) => {
-            const baseMealPrice = 99;
-            const singleMealPlanPrice = Math.round(baseMealPrice * p.durationDays * (1 - p.discountPercent / 100));
-            return {
-              ...p,
-              basePlanPrice: singleMealPlanPrice,
-              unit: p.durationDays === 1 ? "/day" : p.durationDays === 7 ? "/week" : "/month",
-              popular: p.durationDays === 7,
-              gradient: p.durationDays === 1 ? "from-saffron-400 to-saffron-500" : p.durationDays === 7 ? "from-spice-400 to-spice-600" : "from-herb-400 to-herb-600",
-              icon: p.durationDays === 1 ? Calendar : p.durationDays === 7 ? Star : Sparkles,
-            };
-          });
-          setPlans(formattedPlans);
-        }
+        if (data.success) setPlans(data.plans);
       })
       .finally(() => setIsLoading(false));
   }, []);
@@ -78,213 +69,260 @@ export default function PlansPage() {
     });
   };
 
-  const getEndDate = (durationDays: number) => addDays(startDate, durationDays - 1);
+  const totalMealsPerDay = selectedMeals.length;
 
-  const buildCustomizeUrl = (planId: string, durationDays: number, includedPerMeal: number) => {
-    const mealsParam = selectedMeals.join(",");
-    const startParam = format(startDate, "yyyy-MM-dd");
-    return `/customize?plan=${planId}&meals=${mealsParam}&start=${startParam}&duration=${durationDays}&included=${includedPerMeal}`;
+  const getPlanPrice = (durationDays: number, discountPercent: number) => {
+    const perMeal = Math.round(BASE_MEAL_PRICE * (1 - discountPercent / 100));
+    const totalMeals = durationDays * totalMealsPerDay;
+    const total = perMeal * totalMeals;
+    return { perMeal, totalMeals, total };
   };
 
-  const buildCustomUrl = () => {
-    const activeMeals = selectedMeals.filter((m) => customMealsPerDay[m] > 0);
-    const mealsParam = activeMeals.join(",");
-    const startParam = format(startDate, "yyyy-MM-dd");
-    const mealsPerDayParam = activeMeals.map((m) => `${m}:${customMealsPerDay[m]}`).join(",");
-    return `/customize?plan=custom&meals=${mealsParam}&start=${startParam}&duration=${customDays}&included=1&mealsPerDay=${mealsPerDayParam}`;
+  const getCustomPrice = () => {
+    const totalMeals = customDays * totalMealsPerDay;
+    // 5% discount for custom plans > 7 days, 15% for > 30 days
+    const discount = customDays >= 30 ? 15 : customDays >= 7 ? 5 : 0;
+    const perMeal = Math.round(BASE_MEAL_PRICE * (1 - discount / 100));
+    const total = perMeal * totalMeals;
+    return { perMeal, totalMeals, total, discount };
   };
 
-  const customPlanPrice = () => {
-    const baseMealPrice = 99;
-    let total = 0;
-    selectedMeals.forEach((meal) => {
-      total += baseMealPrice * customDays * (customMealsPerDay[meal] || 1);
+  const handleTakePlan = (planId: string, durationDays: number) => {
+    const params = new URLSearchParams({
+      plan: planId,
+      meals: selectedMeals.join(","),
+      diet: dietType,
+      start: format(startDate, "yyyy-MM-dd"),
+      duration: durationDays.toString(),
     });
-    return total;
+    router.push(`/checkout?${params.toString()}`);
+  };
+
+  const handleCustomPlan = () => {
+    const params = new URLSearchParams({
+      plan: "custom",
+      meals: selectedMeals.join(","),
+      diet: dietType,
+      start: format(startDate, "yyyy-MM-dd"),
+      duration: customDays.toString(),
+    });
+    router.push(`/checkout?${params.toString()}`);
   };
 
   const tomorrow = addDays(new Date(), 1);
 
+  const planMeta = [
+    { label: "Trial", icon: Zap, tag: null, gradient: "from-saffron-400 to-saffron-500" },
+    { label: "Popular", icon: Star, tag: "Most Popular", gradient: "from-spice-400 to-spice-600" },
+    { label: "Best Deal", icon: Crown, tag: "Best Value", gradient: "from-herb-400 to-herb-600" },
+  ];
+
   return (
-    <div className="min-h-screen pt-20 lg:pt-24 page-enter" id="plans-page">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="min-h-screen pt-20 lg:pt-24 page-enter">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
-        <div className="text-center space-y-4 mb-12">
-          <Badge className="bg-herb-100 text-herb-800 dark:bg-herb-900/30 dark:text-herb-400 border-none">
-            Subscription Plans
-          </Badge>
+        <div className="text-center space-y-3 mb-10">
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold font-heading">
-            Choose your <span className="gradient-text">perfect plan</span>
+            Healthy Meals, <span className="gradient-text">Delivered Daily</span>
           </h1>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Flexible plans designed for every lifestyle. Each plan includes 1 item per meal. Add extras at menu price.
+          <p className="text-muted-foreground max-w-xl mx-auto">
+            Choose your preferences, pick a plan, and we&apos;ll deliver fresh calorie-counted meals to your doorstep.
           </p>
         </div>
 
-        {/* Meal Selection */}
-        <div className="max-w-2xl mx-auto mb-8">
-          <h2 className="text-center font-heading font-semibold mb-4">
-            Select your meals
-          </h2>
-          <p className="text-center text-sm text-muted-foreground mb-6">
-            Choose one, two, or all three meal times. 1 item included per meal — extras are chargeable.
-          </p>
-          <div className="grid grid-cols-3 gap-3 sm:gap-4">
-            {MEAL_OPTIONS.map((meal) => (
-              <button
-                key={meal.type}
-                onClick={() => toggleMeal(meal.type)}
-                className={`relative p-4 sm:p-6 rounded-xl border-2 transition-all duration-300 text-center group ${
-                  selectedMeals.includes(meal.type)
-                    ? "border-saffron-400 bg-saffron-50 dark:bg-saffron-900/20 shadow-lg shadow-saffron-500/10"
-                    : "border-border hover:border-muted-foreground/30 hover:bg-secondary/50"
-                }`}
-              >
-                {selectedMeals.includes(meal.type) && (
-                  <div className="absolute -top-2 -right-2 w-6 h-6 bg-saffron-500 rounded-full flex items-center justify-center shadow-md">
-                    <Check className="w-3.5 h-3.5 text-white" />
-                  </div>
-                )}
-                <div className="text-3xl sm:text-4xl mb-2">{meal.emoji}</div>
-                <h3 className="font-heading font-semibold text-sm sm:text-base">{meal.label}</h3>
-                <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">{meal.time}</p>
-              </button>
-            ))}
-          </div>
-          <p className="text-center text-xs text-muted-foreground mt-3">
-            {selectedMeals.length === 1 ? "1 meal" : selectedMeals.length === 2 ? "2 meals" : "All 3 meals"} selected
-          </p>
-        </div>
+        {/* Preferences Section */}
+        <Card className="mb-10">
+          <CardContent className="p-6 sm:p-8 space-y-8">
+            {/* Meal Preferences */}
+            <div>
+              <h3 className="font-heading font-semibold text-sm uppercase tracking-wider text-muted-foreground mb-4">
+                Meal Preference
+              </h3>
+              <div className="flex flex-wrap gap-3">
+                {MEAL_PREFERENCES.map((meal) => (
+                  <button
+                    key={meal.type}
+                    onClick={() => toggleMeal(meal.type)}
+                    className={`relative flex items-center gap-3 px-5 py-3 rounded-xl border-2 transition-all text-left ${
+                      selectedMeals.includes(meal.type)
+                        ? "border-saffron-500 bg-saffron-50 dark:bg-saffron-900/20"
+                        : "border-border hover:border-muted-foreground/30"
+                    }`}
+                  >
+                    <div
+                      className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
+                        selectedMeals.includes(meal.type)
+                          ? "bg-saffron-500 border-saffron-500"
+                          : "border-muted-foreground/30"
+                      }`}
+                    >
+                      {selectedMeals.includes(meal.type) && (
+                        <Check className="w-3 h-3 text-white" />
+                      )}
+                    </div>
+                    <div>
+                      <div className="font-medium text-sm">{meal.label}</div>
+                      <div className="text-[11px] text-muted-foreground">{meal.time}</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
 
-        {/* Start Date Picker */}
-        <div className="max-w-md mx-auto mb-12">
-          <div className="flex items-center justify-center gap-3">
-            <CalendarDays className="w-5 h-5 text-saffron-500" />
-            <span className="font-heading font-semibold">Start Date:</span>
-            <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="gap-2 font-medium">
-                  <Calendar className="w-4 h-4" />
-                  {format(startDate, "EEE, MMM d, yyyy")}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="center">
-                <CalendarComponent
-                  mode="single"
-                  selected={startDate}
-                  onSelect={(date) => {
-                    if (date) {
-                      setStartDate(date);
-                      setIsCalendarOpen(false);
-                    }
-                  }}
-                  disabled={(date) => date < tomorrow}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
-        </div>
+            {/* Meal Type */}
+            <div>
+              <h3 className="font-heading font-semibold text-sm uppercase tracking-wider text-muted-foreground mb-4">
+                Meal Type
+              </h3>
+              <div className="flex flex-wrap gap-3">
+                {DIET_TYPES.map((diet) => (
+                  <button
+                    key={diet.value}
+                    onClick={() => setDietType(diet.value)}
+                    className={`flex items-center gap-2 px-5 py-3 rounded-xl border-2 transition-all ${
+                      dietType === diet.value
+                        ? "border-saffron-500 bg-saffron-50 dark:bg-saffron-900/20"
+                        : "border-border hover:border-muted-foreground/30"
+                    }`}
+                  >
+                    <span className="text-lg">{diet.icon}</span>
+                    <span className="font-medium text-sm">{diet.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
 
-        {/* Plans Grid */}
+            {/* Start Date */}
+            <div>
+              <h3 className="font-heading font-semibold text-sm uppercase tracking-wider text-muted-foreground mb-4">
+                Start Date
+              </h3>
+              <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="gap-2 h-12 px-5">
+                    <CalendarDays className="w-4 h-4 text-saffron-500" />
+                    <span className="font-medium">{format(startDate, "EEEE, MMMM d, yyyy")}</span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={startDate}
+                    onSelect={(date) => {
+                      if (date) {
+                        setStartDate(date);
+                        setIsCalendarOpen(false);
+                      }
+                    }}
+                    disabled={(date) => date < tomorrow}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </CardContent>
+        </Card>
+
+        <p className="text-center text-xs text-muted-foreground mb-6">
+          Prices exclude GST and delivery charges
+        </p>
+
+        {/* Plan Cards */}
         {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-24 text-muted-foreground mb-16">
-            <Loader2 className="h-10 w-10 animate-spin text-saffron-500 mb-4" />
-            <p>Fetching plans...</p>
+          <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+            <Loader2 className="h-8 w-8 animate-spin text-saffron-500 mb-3" />
+            <p className="text-sm">Loading plans...</p>
           </div>
         ) : (
           <>
-            <div className="grid md:grid-cols-3 gap-6 lg:gap-8 max-w-5xl mx-auto mb-12">
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-10">
               {plans.map((plan, index) => {
-                const finalPrice = (plan.basePlanPrice || 99) * selectedMeals.length;
-                const endDate = getEndDate(plan.durationDays);
+                const meta = planMeta[index] || planMeta[0];
+                const pricing = getPlanPrice(plan.durationDays, plan.discountPercent);
+                const endDate = addDays(startDate, plan.durationDays - 1);
+
                 return (
                   <Card
                     key={plan.id}
                     className={`relative overflow-hidden transition-all duration-300 hover:-translate-y-1 ${
-                      plan.popular
-                        ? "border-saffron-400 shadow-xl shadow-saffron-500/10 md:scale-105 z-10"
-                        : "border hover:shadow-lg"
+                      meta.tag
+                        ? "border-saffron-400 shadow-xl shadow-saffron-500/10"
+                        : "hover:shadow-lg"
                     }`}
-                    style={{ animationDelay: `${index * 150}ms` }}
                   >
-                    {plan.popular && (
-                      <div className="absolute -top-px left-0 right-0 h-1 bg-gradient-to-r from-saffron-400 via-spice-500 to-saffron-400" />
+                    {meta.tag && (
+                      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-saffron-400 via-spice-500 to-saffron-400" />
                     )}
-                    {plan.popular && (
-                      <div className="absolute -top-0 left-1/2 -translate-x-1/2 translate-y-2">
-                        <Badge className="bg-gradient-to-r from-saffron-500 to-spice-500 text-white border-none px-4 shadow-lg">
+
+                    <CardContent className="p-6 flex flex-col h-full">
+                      {/* Tag */}
+                      {meta.tag && (
+                        <Badge className="bg-gradient-to-r from-saffron-500 to-spice-500 text-white border-none w-fit mb-4">
                           <Star className="w-3 h-3 mr-1 fill-current" />
-                          Most Popular
+                          {meta.tag}
                         </Badge>
-                      </div>
-                    )}
+                      )}
 
-                    <CardContent className={plan.popular ? "pt-12 pb-8 px-6" : "pt-8 pb-8 px-6"}>
-                      <div className="text-center space-y-4">
-                        <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${plan.gradient} flex items-center justify-center mx-auto shadow-lg`}>
-                          <plan.icon className="w-7 h-7 text-white" />
+                      {/* Plan name */}
+                      <h3 className="text-lg font-bold font-heading">{plan.name}</h3>
+                      {plan.description && (
+                        <p className="text-sm text-muted-foreground mt-1">{plan.description}</p>
+                      )}
+
+                      {/* Price */}
+                      <div className="mt-4 mb-4">
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-3xl font-bold font-heading">
+                            ₹{pricing.perMeal}
+                          </span>
+                          <span className="text-muted-foreground text-sm">/meal</span>
                         </div>
-
-                        <div>
-                          <h3 className="text-xl font-bold font-heading">{plan.name}</h3>
-                          <p className="text-sm text-muted-foreground">{plan.description}</p>
-                        </div>
-
-                        <div className="py-2">
-                          <div className="flex items-baseline justify-center gap-1">
-                            <span className="text-sm text-muted-foreground">₹</span>
-                            <span className="text-4xl font-bold font-heading">{finalPrice.toLocaleString("en-IN")}</span>
-                            <span className="text-sm text-muted-foreground">{plan.unit}</span>
-                          </div>
-                          {plan.discountPercent > 0 && (
-                            <Badge variant="outline" className="mt-2 text-herb-600 border-herb-300">
+                        {plan.discountPercent > 0 && (
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-sm text-muted-foreground line-through">
+                              ₹{BASE_MEAL_PRICE}
+                            </span>
+                            <Badge variant="outline" className="text-herb-600 border-herb-300 text-xs">
                               Save {plan.discountPercent}%
                             </Badge>
-                          )}
-                        </div>
+                          </div>
+                        )}
+                      </div>
 
-                        {/* Date Range */}
-                        <div className="bg-secondary/50 rounded-lg p-3 text-sm">
-                          <div className="flex items-center justify-between">
-                            <span className="text-muted-foreground">Start</span>
-                            <span className="font-medium">{format(startDate, "MMM d")}</span>
-                          </div>
-                          <div className="flex items-center justify-between mt-1">
-                            <span className="text-muted-foreground">End</span>
-                            <span className="font-medium">{format(endDate, "MMM d, yyyy")}</span>
-                          </div>
-                          <div className="flex items-center justify-between mt-1 pt-1 border-t">
-                            <span className="text-muted-foreground">Duration</span>
-                            <span className="font-medium">{plan.durationDays} days</span>
-                          </div>
+                      {/* Details */}
+                      <div className="bg-secondary/50 rounded-lg p-3 text-sm space-y-1.5 mb-4">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Duration</span>
+                          <span className="font-medium">{plan.durationDays} days</span>
                         </div>
-
-                        <div className="flex items-center justify-center gap-1 text-sm">
-                          <span className="text-muted-foreground">Includes</span>
-                          <span className="font-medium">1 item / meal / day</span>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Total meals</span>
+                          <span className="font-medium">{pricing.totalMeals} meals</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Period</span>
+                          <span className="font-medium">
+                            {format(startDate, "MMM d")} — {format(endDate, "MMM d")}
+                          </span>
+                        </div>
+                        <div className="flex justify-between pt-1.5 border-t font-bold">
+                          <span>Total</span>
+                          <span>₹{pricing.total.toLocaleString("en-IN")}</span>
                         </div>
                       </div>
 
-                      <ul className="mt-6 space-y-3">
-                        {plan.features.map((feature: string) => (
-                          <li key={feature} className="flex items-start gap-2 text-sm">
-                            <Check className="w-4 h-4 text-herb-500 shrink-0 mt-0.5" />
-                            <span>{feature}</span>
-                          </li>
-                        ))}
-                      </ul>
-
-                      <Link href={buildCustomizeUrl(plan.id, plan.durationDays, 1)} className="block mt-8">
+                      {/* CTA */}
+                      <div className="mt-auto">
                         <Button
-                          variant={plan.popular ? "gradient" : "outline"}
+                          variant={meta.tag ? "gradient" : "outline"}
                           className="w-full gap-2"
                           size="lg"
+                          onClick={() => handleTakePlan(plan.id, plan.durationDays)}
                         >
-                          Get Started
+                          Take this plan
                           <ArrowRight className="w-4 h-4" />
                         </Button>
-                      </Link>
+                      </div>
                     </CardContent>
                   </Card>
                 );
@@ -292,136 +330,110 @@ export default function PlansPage() {
             </div>
 
             {/* Custom Plan */}
-            <div className="max-w-3xl mx-auto mb-16">
-              <Card className="border-2 border-dashed border-saffron-300 dark:border-saffron-700">
-                <CardContent className="p-6 sm:p-8">
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-saffron-400 via-spice-500 to-herb-500 flex items-center justify-center shadow-lg">
-                      <Settings2 className="w-6 h-6 text-white" />
+            <Card className="mb-16">
+              <CardContent className="p-6 sm:p-8">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-saffron-400 via-spice-500 to-herb-500 flex items-center justify-center">
+                    <Settings2 className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold font-heading">Custom Duration</h3>
+                    <p className="text-sm text-muted-foreground">Choose 1 - 90 days</p>
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-center gap-6">
+                  {/* Duration selector */}
+                  <div className="flex items-center gap-3">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setCustomDays((d) => Math.max(1, d - 1))}
+                      disabled={customDays <= 1}
+                    >
+                      <Minus className="w-4 h-4" />
+                    </Button>
+                    <div className="text-center w-24">
+                      <span className="text-3xl font-bold font-heading">{customDays}</span>
+                      <span className="text-sm text-muted-foreground ml-1">days</span>
                     </div>
-                    <div>
-                      <h3 className="text-xl font-bold font-heading">Custom Plan</h3>
-                      <p className="text-sm text-muted-foreground">Set your own duration and meals per day</p>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setCustomDays((d) => Math.min(90, d + 1))}
+                      disabled={customDays >= 90}
+                    >
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </div>
+
+                  {/* Pricing summary */}
+                  <div className="flex-1 bg-secondary/50 rounded-lg p-4 text-sm w-full">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Per meal</span>
+                      <span className="font-medium">₹{getCustomPrice().perMeal}</span>
+                    </div>
+                    <div className="flex justify-between mt-1">
+                      <span className="text-muted-foreground">Total meals</span>
+                      <span className="font-medium">{getCustomPrice().totalMeals}</span>
+                    </div>
+                    <div className="flex justify-between mt-1">
+                      <span className="text-muted-foreground">Period</span>
+                      <span className="font-medium">
+                        {format(startDate, "MMM d")} — {format(addDays(startDate, customDays - 1), "MMM d")}
+                      </span>
+                    </div>
+                    {getCustomPrice().discount > 0 && (
+                      <div className="flex justify-between mt-1">
+                        <span className="text-muted-foreground">Discount</span>
+                        <span className="font-medium text-herb-600">{getCustomPrice().discount}% off</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between pt-2 mt-2 border-t font-bold text-base">
+                      <span>Total</span>
+                      <span>₹{getCustomPrice().total.toLocaleString("en-IN")}</span>
                     </div>
                   </div>
 
-                  <div className="grid sm:grid-cols-2 gap-6">
-                    {/* Duration */}
-                    <div className="space-y-3">
-                      <label className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                        Number of Days
-                      </label>
-                      <div className="flex items-center gap-3">
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          onClick={() => setCustomDays((d) => Math.max(2, d - 1))}
-                          disabled={customDays <= 2}
-                        >
-                          <Minus className="w-4 h-4" />
-                        </Button>
-                        <div className="flex-1 text-center">
-                          <span className="text-3xl font-bold font-heading">{customDays}</span>
-                          <span className="text-sm text-muted-foreground ml-2">days</span>
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          onClick={() => setCustomDays((d) => Math.min(90, d + 1))}
-                          disabled={customDays >= 90}
-                        >
-                          <Plus className="w-4 h-4" />
-                        </Button>
-                      </div>
-                      <div className="bg-secondary/50 rounded-lg p-3 text-sm">
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Start</span>
-                          <span className="font-medium">{format(startDate, "MMM d")}</span>
-                        </div>
-                        <div className="flex justify-between mt-1">
-                          <span className="text-muted-foreground">End</span>
-                          <span className="font-medium">{format(getEndDate(customDays), "MMM d, yyyy")}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Meals per day */}
-                    <div className="space-y-3">
-                      <label className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                        Included Items per Meal
-                      </label>
-                      {selectedMeals.map((meal) => {
-                        const info = MEAL_OPTIONS.find((m) => m.type === meal);
-                        return (
-                          <div key={meal} className="flex items-center justify-between bg-secondary/50 rounded-lg p-3">
-                            <div className="flex items-center gap-2">
-                              <span>{info?.emoji}</span>
-                              <span className="text-sm font-medium">{info?.label}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7"
-                                onClick={() =>
-                                  setCustomMealsPerDay((prev) => ({
-                                    ...prev,
-                                    [meal]: Math.max(1, (prev[meal] || 1) - 1),
-                                  }))
-                                }
-                                disabled={(customMealsPerDay[meal] || 1) <= 1}
-                              >
-                                <Minus className="w-3 h-3" />
-                              </Button>
-                              <span className="font-bold w-6 text-center">
-                                {customMealsPerDay[meal] || 1}
-                              </span>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7"
-                                onClick={() =>
-                                  setCustomMealsPerDay((prev) => ({
-                                    ...prev,
-                                    [meal]: Math.min(5, (prev[meal] || 1) + 1),
-                                  }))
-                                }
-                                disabled={(customMealsPerDay[meal] || 1) >= 5}
-                              >
-                                <Plus className="w-3 h-3" />
-                              </Button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  <div className="mt-6 pt-6 border-t flex flex-col sm:flex-row items-center justify-between gap-4">
-                    <div>
-                      <div className="text-sm text-muted-foreground">Estimated total</div>
-                      <div className="flex items-baseline gap-1">
-                        <span className="text-sm text-muted-foreground">₹</span>
-                        <span className="text-3xl font-bold font-heading">{customPlanPrice().toLocaleString("en-IN")}</span>
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        Base price &middot; extras charged at menu price
-                      </div>
-                    </div>
-                    <Link href={buildCustomUrl()}>
-                      <Button variant="gradient" size="lg" className="gap-2">
-                        Customize Meals
-                        <ArrowRight className="w-4 h-4" />
-                      </Button>
-                    </Link>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+                  {/* CTA */}
+                  <Button
+                    variant="gradient"
+                    size="lg"
+                    className="gap-2 whitespace-nowrap"
+                    onClick={handleCustomPlan}
+                  >
+                    Take this plan
+                    <ArrowRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           </>
         )}
 
-        {/* FAQ Section */}
+        {/* How it works */}
+        <div className="max-w-3xl mx-auto mb-16">
+          <h2 className="text-2xl font-bold font-heading text-center mb-8">
+            How it works
+          </h2>
+          <div className="grid sm:grid-cols-3 gap-6">
+            {[
+              { step: "1", title: "Choose your plan", desc: "Select meals, diet type, and plan duration" },
+              { step: "2", title: "We prepare fresh", desc: "Our chefs prepare calorie-counted meals daily" },
+              { step: "3", title: "Delivered to you", desc: "Fresh meals delivered to your doorstep on time" },
+            ].map((item) => (
+              <div key={item.step} className="text-center">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-saffron-400 to-spice-500 flex items-center justify-center mx-auto mb-3 text-white font-bold">
+                  {item.step}
+                </div>
+                <h3 className="font-heading font-semibold mb-1">{item.title}</h3>
+                <p className="text-sm text-muted-foreground">{item.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* FAQ */}
         <div className="max-w-3xl mx-auto">
           <h2 className="text-2xl font-bold font-heading text-center mb-8">
             Frequently Asked Questions
@@ -429,29 +441,25 @@ export default function PlansPage() {
           <div className="space-y-4">
             {[
               {
-                q: "What does '1 item included per meal' mean?",
-                a: "Each plan includes 1 menu item per meal type per day at no extra cost. Want more variety? You can add extra items during customization — they're charged at the menu price.",
+                q: "Can I pause or cancel my subscription?",
+                a: "Yes, you can pause or cancel anytime from your dashboard. No cancellation fees.",
               },
               {
-                q: "Can I switch between plans?",
-                a: "Yes! You can upgrade or downgrade your plan anytime. Changes will take effect from the next billing cycle.",
+                q: "When are meals delivered?",
+                a: "Breakfast is delivered by 8 AM, Lunch between 12-1 PM, and Dinner between 7-8 PM.",
               },
               {
-                q: "How does the Custom Plan work?",
-                a: "Set your own duration (2-90 days) and choose how many items you want included per meal. Great for special diets or hosting guests.",
+                q: "Can I change my diet type mid-plan?",
+                a: "Yes! Contact us and we'll adjust your remaining meals accordingly.",
               },
               {
-                q: "Can I choose different meals for each day?",
-                a: "Absolutely! After selecting your plan, you'll customize the menu for each day. Pick your included item and add extras if you'd like.",
-              },
-              {
-                q: "What if I want to cancel?",
-                a: "You can cancel your subscription anytime from your dashboard. No questions asked, no cancellation fees.",
+                q: "Do you deliver to my area?",
+                a: "We currently serve major areas. Enter your pincode at checkout to verify delivery availability.",
               },
             ].map((faq, index) => (
-              <Card key={index} className="card-hover">
+              <Card key={index}>
                 <CardContent className="p-5">
-                  <h3 className="font-heading font-semibold text-sm mb-2">{faq.q}</h3>
+                  <h3 className="font-heading font-semibold text-sm mb-1">{faq.q}</h3>
                   <p className="text-sm text-muted-foreground">{faq.a}</p>
                 </CardContent>
               </Card>
