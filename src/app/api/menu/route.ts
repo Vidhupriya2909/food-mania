@@ -11,6 +11,9 @@ export async function GET(req: Request) {
     if (dateParam) {
       // "YYYY-MM-DD" → UTC midnight via Date.UTC
       const [y, m, d] = dateParam.split("-").map(Number);
+      if (isNaN(y) || isNaN(m) || isNaN(d)) {
+        return NextResponse.json({ success: true, data: [] });
+      }
       targetDate = new Date(Date.UTC(y, m - 1, d));
     } else {
       // Default to today in local timezone, but store as UTC midnight
