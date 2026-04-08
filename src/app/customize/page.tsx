@@ -36,11 +36,11 @@ function CustomizeContent() {
 
   useEffect(() => {
     setIsLoading(true);
-    fetch(`/api/menu?date=${currentDate.toISOString()}`)
+    fetch(`/api/menu?date=${dateKey}`)
       .then((res) => res.json())
       .then((data) => {
         if (data.success) {
-          setMenuItems(data.menu);
+          setMenuItems(data.data);
         }
       })
       .finally(() => setIsLoading(false));
@@ -77,9 +77,9 @@ function CustomizeContent() {
 
   const addAllToCart = () => {
     Object.entries(selectedItems).forEach(([key, itemIds]) => {
-      const [date, mealType] = key.split("-").length > 3
-        ? [key.substring(0, 10), key.substring(11)]
-        : key.split("-");
+      // Key format: "YYYY-MM-DD-MEALTYPE" e.g. "2026-04-08-BREAKFAST"
+      const date = key.substring(0, 10);
+      const mealType = key.substring(11);
       itemIds.forEach((itemId) => {
         const item = menuItems.find((m) => m.id === itemId || m.dailyMenuId === itemId);
         if (item) {

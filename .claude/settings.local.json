@@ -3,7 +3,11 @@
     "allow": [
       "Bash(ls -la .env*)",
       "Bash(npx prisma:*)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(vercel link:*)",
+      "Bash(vercel env:*)",
+      "Bash(vercel --prod --yes)",
+      "Bash(npx next:*)"
     ]
   }
 }

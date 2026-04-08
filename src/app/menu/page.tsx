@@ -54,7 +54,8 @@ export default function MenuPage() {
     const fetchMenu = async () => {
       setIsLoading(true);
       try {
-        const response = await fetch(`/api/menu?date=${selectedDate.toISOString()}`);
+        const dateStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, "0")}-${String(selectedDate.getDate()).padStart(2, "0")}`;
+        const response = await fetch(`/api/menu?date=${dateStr}`);
         const result = await response.json();
         if (result.success) {
           setMenuItems(result.data);

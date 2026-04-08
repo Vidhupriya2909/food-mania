@@ -1,11 +1,13 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
+import prisma from "@/lib/prisma";
 import Link from "next/link";
-import { 
-  LayoutDashboard, 
-  ShoppingBag, 
-  CalendarCheck, 
-  MapPin, 
+import Image from "next/image";
+import {
+  LayoutDashboard,
+  ShoppingBag,
+  CalendarCheck,
+  MapPin,
   User as UserIcon,
   CreditCard
 } from "lucide-react";
@@ -21,6 +23,15 @@ export default async function DashboardLayout({
     redirect("/login?callbackUrl=/dashboard");
   }
 
+  const dbUser = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { name: true, phone: true, email: true, image: true },
+  });
+
+  const displayName = dbUser?.name || "Foodie";
+  const displayContact = dbUser?.phone || dbUser?.email || "";
+  const displayImage = dbUser?.image || null;
+
   const navItems = [
     { name: "Overview", href: "/dashboard", icon: LayoutDashboard },
     { name: "My Orders", href: "/dashboard/orders", icon: ShoppingBag },
@@ -34,22 +45,34 @@ export default async function DashboardLayout({
     <div className="min-h-screen pt-20 lg:pt-24 bg-secondary/20 page-enter">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex flex-col lg:flex-row gap-8">
-          
+
           {/* Sidebar Navigation */}
           <aside className="w-full lg:w-64 flex-shrink-0">
             <div className="bg-card rounded-xl border shadow-sm p-4 sticky top-28">
               <div className="flex items-center gap-3 mb-6 p-2">
-                <div className="w-12 h-12 bg-saffron-100 rounded-full flex items-center justify-center text-xl shadow-inner font-bold text-saffron-700">
-                  {session.user.name?.[0] || <UserIcon />}
-                </div>
-                <div>
-                  <h3 className="font-bold font-heading line-clamp-1">{session.user.name || "Foodie"}</h3>
+                {displayImage ? (
+                  <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-saffron-200 flex-shrink-0">
+                    <Image
+                      src={displayImage}
+                      alt={displayName}
+                      width={48}
+                      height={48}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                ) : (
+                  <div className="w-12 h-12 bg-saffron-100 rounded-full flex items-center justify-center text-xl shadow-inner font-bold text-saffron-700 flex-shrink-0">
+                    {displayName[0]?.toUpperCase() || <UserIcon />}
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <h3 className="font-bold font-heading line-clamp-1">{displayName}</h3>
                   <p className="text-xs text-muted-foreground line-clamp-1">
-                    {(session.user as any).phone || session.user.email}
+                    {displayContact}
                   </p>
                 </div>
               </div>
-              
+
               <nav className="space-y-1">
                 {navItems.map((item) => (
                   <Link

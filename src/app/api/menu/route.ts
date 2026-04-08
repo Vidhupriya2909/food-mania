@@ -6,14 +6,23 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const dateParam = searchParams.get("date");
     
-    // Parse date or default to today (start of day)
-    const targetDate = dateParam ? new Date(dateParam) : new Date();
-    targetDate.setHours(0, 0, 0, 0);
+    // Parse date as UTC to match DB-stored dates (which are at UTC midnight)
+    let targetDate: Date;
+    if (dateParam) {
+      // "YYYY-MM-DD" → UTC midnight via Date.UTC
+      const [y, m, d] = dateParam.split("-").map(Number);
+      targetDate = new Date(Date.UTC(y, m - 1, d));
+    } else {
+      // Default to today in local timezone, but store as UTC midnight
+      const now = new Date();
+      targetDate = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+    }
 
     // Fetch DailyMenu for the target date, including the MenuItem details
     const dailyMenuItems = await prisma.dailyMenu.findMany({
       where: {
         date: targetDate,
+        isAvailable: true,
       },
       include: {
         menuItem: {

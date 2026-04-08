@@ -46,6 +46,7 @@ export const metadata: Metadata = {
 };
 
 import { auth } from "@/lib/auth";
+import prisma from "@/lib/prisma";
 import { CartProvider } from "@/context/CartContext";
 import CartDrawer from "@/components/cart/CartDrawer";
 
@@ -55,6 +56,20 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const session = await auth();
+
+  // Fetch fresh user data from DB to ensure name/image are current
+  if (session?.user?.id) {
+    const dbUser = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { name: true, image: true, phone: true, email: true },
+    });
+    if (dbUser) {
+      session.user.name = dbUser.name;
+      session.user.image = dbUser.image;
+      (session.user as any).phone = dbUser.phone;
+      if (dbUser.email) session.user.email = dbUser.email;
+    }
+  }
 
   return (
     <html lang="en" suppressHydrationWarning>

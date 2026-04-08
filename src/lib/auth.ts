@@ -33,7 +33,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (otp === "123456") {
           let user = await prisma.user.findUnique({ where: { phone } });
           const isAdminNumber = phone === "1111111111";
-          
+
           if (!user) {
             user = await prisma.user.create({
               data: {
@@ -43,7 +43,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               }
             });
           } else if (isAdminNumber && user.role !== "ADMIN") {
-            // Ensure the admin number always has the ADMIN role
             user = await prisma.user.update({
               where: { phone },
               data: { role: "ADMIN" }
@@ -54,11 +53,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         // Logic to verify OTP from DB
         const otpRecord = await prisma.otpVerification.findFirst({
-          where: { 
-            phone, 
-            otp, 
+          where: {
+            phone,
+            otp,
             expiresAt: { gt: new Date() },
-            verified: false 
+            verified: false
           },
           orderBy: { createdAt: "desc" }
         });
@@ -94,18 +93,40 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
+    async jwt({ token, user, trigger }) {
+      // On initial sign-in, populate token from user object
+      if (user) {
+        token.sub = user.id;
+        token.name = user.name;
+        token.picture = user.image;
+        token.phone = (user as any).phone;
+      }
+
+      // On session update trigger or periodically, refresh from DB
+      if (trigger === "update" || !token.name) {
+        const dbUser = await prisma.user.findUnique({
+          where: { id: token.sub! },
+          select: { name: true, email: true, image: true, phone: true },
+        });
+        if (dbUser) {
+          token.name = dbUser.name;
+          token.email = dbUser.email;
+          token.picture = dbUser.image;
+          token.phone = dbUser.phone;
+        }
+      }
+
+      return token;
+    },
     async session({ session, token }) {
       if (token.sub && session.user) {
         session.user.id = token.sub;
+        session.user.name = token.name || null;
+        session.user.image = (token.picture as string) || null;
+        (session.user as any).phone = token.phone || null;
       }
       return session;
     },
-    async jwt({ token, user }) {
-      if (user) {
-        token.sub = user.id;
-      }
-      return token;
-    }
   },
   pages: {
     signIn: "/login",

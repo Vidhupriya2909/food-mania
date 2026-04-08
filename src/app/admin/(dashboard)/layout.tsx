@@ -11,6 +11,7 @@ import {
   Settings,
   ShieldCheck,
   LogOut,
+  CalendarCheck,
 } from "lucide-react";
 
 export default async function AdminDashboardLayout({
@@ -37,6 +38,7 @@ export default async function AdminDashboardLayout({
   const navItems = [
     { name: "Overview", href: "/admin", icon: BarChart3 },
     { name: "Orders", href: "/admin/orders", icon: ShoppingBag },
+    { name: "Subscriptions", href: "/admin/subscriptions", icon: CalendarCheck },
     { name: "Menu Scheduler", href: "/admin/scheduler", icon: CalendarDays },
     { name: "Items & Categories", href: "/admin/menu-items", icon: UtensilsCrossed },
     { name: "Customers", href: "/admin/users", icon: Users },

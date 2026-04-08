@@ -10,6 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { format } from "date-fns";
+import OrderActions from "./OrderActions";
 
 export default async function AdminOrdersPage() {
   const orders = await prisma.order.findMany({
@@ -43,12 +44,13 @@ export default async function AdminOrdersPage() {
                 <TableHead>Items</TableHead>
                 <TableHead>Amount</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {orders.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                     No orders found.
                   </TableCell>
                 </TableRow>
@@ -74,12 +76,15 @@ export default async function AdminOrdersPage() {
                     </TableCell>
                     <TableCell className="font-bold">₹{order.finalAmount}</TableCell>
                     <TableCell>
-                      <Badge 
-                        variant={order.status === "DELIVERED" ? "default" : order.status === "PENDING" ? "outline" : "secondary"}
+                      <Badge
+                        variant={order.status === "DELIVERED" ? "default" : order.status === "PENDING" ? "outline" : order.status === "CANCELLED" ? "destructive" : "secondary"}
                         className={order.status === "DELIVERED" ? "bg-green-500 hover:bg-green-600" : ""}
                       >
                         {order.status}
                       </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <OrderActions orderId={order.id} currentStatus={order.status} />
                     </TableCell>
                   </TableRow>
                 ))
